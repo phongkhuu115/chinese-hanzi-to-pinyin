@@ -99,27 +99,85 @@ function parseEntries(raw) {
 
 // ─── Translation ──────────────────────────────────────────────────────────────
 const viCache = new Map();
+let apiErrorCount = 0;
+
+// ── Provider 1: MyMemory ──────────────────────────────────────────────────────
+async function tryMyMemory(text) {
+  const url = `https://api.mymemory.translated.net/get?q=${encodeURIComponent(text)}&langpair=en|vi`;
+  const res = await fetch(url);
+  if (!res.ok) return null;
+  const data = await res.json();
+  if (data?.responseStatus !== 200) return null;
+  const translated = (data?.responseData?.translatedText ?? "").trim();
+  return translated || null;
+}
+
+// ── Provider 2: Google Translate (unofficial endpoint, no key needed) ─────────
+async function tryGoogle(text) {
+  const url =
+    `https://translate.googleapis.com/translate_a/single?client=gtx&sl=en&tl=vi&dt=t&q=${encodeURIComponent(text)}`;
+  const res = await fetch(url, {
+    headers: { "User-Agent": "Mozilla/5.0" },
+  });
+  if (!res.ok) return null;
+  const data = await res.json();
+  // Response shape: [ [ ["translated", "original", ...], ... ], ... ]
+  const translated = data?.[0]
+    ?.map((chunk) => chunk?.[0])
+    .filter(Boolean)
+    .join("")
+    .trim();
+  return translated || null;
+}
+
+// ── Provider 3: LibreTranslate public instance ────────────────────────────────
+async function tryLibreTranslate(text) {
+  const url = "https://libretranslate.com/translate";
+  const res = await fetch(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ q: text, source: "en", target: "vi", format: "text" }),
+  });
+  if (!res.ok) return null;
+  const data = await res.json();
+  const translated = (data?.translatedText ?? "").trim();
+  return translated || null;
+}
 
 async function translateOneMeaning(text) {
   const t = text.trim();
   if (!t) return "";
   if (viCache.has(t)) return viCache.get(t);
 
-  try {
-    const url = `https://api.mymemory.translated.net/get?q=${encodeURIComponent(t)}&langpair=en|vi`;
-    const res = await fetch(url);
-    if (!res.ok) return t;
-    const data = await res.json();
-    const translated = data?.responseData?.translatedText ?? "";
-    const result = translated && translated !== t ? translated : t;
-    viCache.set(t, result);
-    return result;
-  } catch {
-    return t;
+  const providers = [
+    { name: "MyMemory", fn: tryMyMemory },
+    { name: "Google", fn: tryGoogle },
+    { name: "LibreTranslate", fn: tryLibreTranslate },
+  ];
+
+  for (const { name, fn } of providers) {
+    try {
+      const result = await fn(t);
+      if (result) {
+        viCache.set(t, result);
+        return result;
+      }
+    } catch {
+      // try next provider
+    }
+    // Small pause before trying next provider
+    await new Promise((r) => setTimeout(r, 100));
   }
+
+  // All providers failed — fall back to English
+  apiErrorCount++;
+  if (apiErrorCount <= 5) {
+    console.warn(`\n  ⚠️  All providers failed for: "${t}" — keeping English`);
+  }
+  return t;
 }
 
-// Translates all semicolon-separated meanings and joins them back
+// Translates all semicolon-separated meanings in parallel
 async function translateToVietnamese(english) {
   if (!english) return "";
   const parts = english.split(";").map((s) => s.trim()).filter(Boolean);
@@ -128,26 +186,26 @@ async function translateToVietnamese(english) {
   return translated.join("; ");
 }
 
-// Translate in batches with a small delay to avoid rate-limiting
-async function translateBatch(entries, batchSize = 5, delayMs = 300) {
+// Translate entries in parallel batches of `batchSize`, with a delay between batches
+async function translateBatch(entries, batchSize = 10, delayMs = 300) {
   const results = new Array(entries.length);
   for (let i = 0; i < entries.length; i += batchSize) {
     const batch = entries.slice(i, i + batchSize);
     const translations = await Promise.all(
       batch.map((e) => translateToVietnamese(e.english))
     );
-    translations.forEach((vi, j) => {
-      results[i + j] = vi;
-    });
+    translations.forEach((vi, j) => { results[i + j] = vi; });
 
     const done = Math.min(i + batchSize, entries.length);
-    process.stdout.write(`\r  Translating... ${done}/${entries.length} (${Math.round((done / entries.length) * 100)}%)`);
+    process.stdout.write(
+      `\r  Translating... ${done}/${entries.length} (${Math.round((done / entries.length) * 100)}%)  errors: ${apiErrorCount}`
+    );
 
     if (i + batchSize < entries.length) {
       await new Promise((r) => setTimeout(r, delayMs));
     }
   }
-  console.log(); // newline after progress
+  console.log();
   return results;
 }
 
@@ -221,7 +279,8 @@ async function main() {
   let newTranslations = [];
   if (toTranslate.length > 0) {
     console.log(`🌐 Translating ${toTranslate.length} new entries (English → Vietnamese)...`);
-    newTranslations = await translateBatch(toTranslate, 5, 250);
+    console.log(`   (10 entries per batch, providers: MyMemory → Google → LibreTranslate)`);
+    newTranslations = await translateBatch(toTranslate, 10, 300);
   } else {
     console.log("✨ All entries already translated — nothing to do!");
   }
