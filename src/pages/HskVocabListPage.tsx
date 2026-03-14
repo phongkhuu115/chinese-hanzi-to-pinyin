@@ -27,17 +27,17 @@ export function HskVocabListPage() {
 
   const [allEntries, setAllEntries] = useState<HskEntry[]>([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState("");
 
   useEffect(() => {
     setLoading(true);
-    fetchWordPool()
-      .then((pool) => {
-        setAllEntries(pool.filter((e) => e.hsk === hskLevel));
-      })
-      .catch((e) => setError(String(e)))
-      .finally(() => setLoading(false));
+    // fetchWordPool is now synchronous (static import)
+    try {
+      const pool = fetchWordPool();
+      setAllEntries(pool.filter((e) => e.hsk === hskLevel));
+    } finally {
+      setLoading(false);
+    }
   }, [hskLevel]);
 
   const filtered = useMemo(() => {
@@ -47,7 +47,8 @@ export function HskVocabListPage() {
       (e) =>
         e.hanzi.includes(q) ||
         e.pinyin.toLowerCase().includes(q) ||
-        String(e.english).toLowerCase().includes(q)
+        e.english.toLowerCase().includes(q) ||
+        e.vietnamese.toLowerCase().includes(q)
     );
   }, [allEntries, search]);
 
@@ -87,7 +88,7 @@ export function HskVocabListPage() {
           <Input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search hanzi, pinyin, or meaning…"
+            placeholder="Search hanzi, pinyin, Vietnamese or English…"
             className="pl-9 pr-9"
           />
           {search && (
@@ -108,26 +109,19 @@ export function HskVocabListPage() {
         </div>
       )}
 
-      {/* Error */}
-      {error && (
-        <p className="text-center text-destructive text-sm">{error}</p>
-      )}
-
       {/* Results count when filtering */}
       {!loading && search && (
         <p className="text-sm text-muted-foreground">
-          {filtered.length} result{filtered.length !== 1 ? "s" : ""} for &ldquo;{search}&rdquo;
+          {filtered.length} result{filtered.length !== 1 ? "s" : ""} for
+          &ldquo;{search}&rdquo;
         </p>
       )}
 
       {/* Word grid */}
-      {!loading && !error && (
+      {!loading && (
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
           {filtered.map((entry) => {
             const pinyin = entry.pinyin || toPinyin(entry.hanzi);
-            const english = Array.isArray(entry.english)
-              ? (entry.english as string[]).join(", ")
-              : String(entry.english || "");
 
             return (
               <Card
@@ -146,9 +140,17 @@ export function HskVocabListPage() {
                     {pinyin}
                   </div>
 
+                  {/* Vietnamese meaning */}
+                  <div className="text-xs font-semibold text-foreground line-clamp-2 leading-snug">
+                    {entry.vietnamese || "—"}
+                  </div>
+
+                  {/* Divider */}
+                  <div className="w-full h-px bg-border/60" />
+
                   {/* English meaning */}
                   <div className="text-xs text-muted-foreground line-clamp-2 leading-snug">
-                    {english || "—"}
+                    {entry.english || "—"}
                   </div>
 
                   {/* HSK badge + audio icon */}
@@ -165,7 +167,7 @@ export function HskVocabListPage() {
             );
           })}
 
-          {filtered.length === 0 && !loading && (
+          {filtered.length === 0 && (
             <div className="col-span-full text-center py-12 text-muted-foreground text-sm">
               No words found for &ldquo;{search}&rdquo;
             </div>

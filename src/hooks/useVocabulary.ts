@@ -29,21 +29,23 @@ export function useVocabulary(
   // Track which indices have been used to avoid immediate repeats
   const usedIndices = useRef<Set<number>>(new Set());
 
-  // Load word pool on mount
+  // Load word pool on mount (synchronous — static import)
   useEffect(() => {
-    fetchWordPool()
-      .then((pool) => {
-        const filtered = hskLevels?.length
-          ? pool.filter((e) => hskLevels.includes(e.hsk))
-          : pool;
-        setWordPool(filtered);
-      })
-      .catch((e) => setError(String(e)))
-      .finally(() => setPoolLoading(false));
+    try {
+      const pool = fetchWordPool();
+      const filtered = hskLevels?.length
+        ? pool.filter((e) => hskLevels.includes(e.hsk))
+        : pool;
+      setWordPool(filtered);
+    } catch (e) {
+      setError(String(e));
+    } finally {
+      setPoolLoading(false);
+    }
   }, [hskLevels]);
 
   const pickRandom = useCallback(
-    async (pool: HskEntry[]) => {
+    (pool: HskEntry[]) => {
       if (!pool.length) return;
 
       // Reset used indices when all words have been shown
@@ -62,7 +64,7 @@ export function useVocabulary(
       setLoading(true);
       setError(null);
       try {
-        const built = await buildVocabWord(entry, entry.id);
+        const built = buildVocabWord(entry, entry.id);
         setWord(built);
       } catch (e) {
         setError(String(e));

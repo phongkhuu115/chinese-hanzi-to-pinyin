@@ -38,12 +38,15 @@ export function PinyinAssertionPage() {
   const { getVisited, markVisited, resetVisited, visitedCount } =
     useVisitedWords();
 
-  // Load pool
+  // Load pool (synchronous — static import)
   useEffect(() => {
-    fetchWordPool()
-      .then(setPool)
-      .catch((e) => setError(String(e)))
-      .finally(() => setPoolLoading(false));
+    try {
+      setPool(fetchWordPool());
+    } catch (e) {
+      setError(String(e));
+    } finally {
+      setPoolLoading(false);
+    }
   }, []);
 
   const pickNext = useCallback(
@@ -63,7 +66,7 @@ export function PinyinAssertionPage() {
       setFeedback("idle");
       setInput("");
       try {
-        const word = await buildVocabWord(entry, entry.id);
+        const word = buildVocabWord(entry, entry.id);
         setCurrentWord(word);
         setTimeout(() => inputRef.current?.focus(), 100);
       } catch (e) {

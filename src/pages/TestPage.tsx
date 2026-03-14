@@ -38,16 +38,16 @@ export function TestPage() {
     setBuilding(true);
     setBuildError(null);
     try {
-      const pool = await fetchWordPool();
+      const pool = fetchWordPool();
       // Pick random unique indices
       const indices = new Set<number>();
       while (indices.size < Math.min(wordCount, pool.length)) {
         indices.add(Math.floor(Math.random() * pool.length));
       }
 
-      // Build vocab words (fetch Vietnamese in parallel)
-      const words: VocabularyWord[] = await Promise.all(
-        [...indices].map((i) => buildVocabWord(pool[i], pool[i].id))
+      // Build vocab words (synchronous now)
+      const words: VocabularyWord[] = [...indices].map((i) =>
+        buildVocabWord(pool[i], pool[i].id)
       );
 
       const qs: TestQuestion[] = words.map((w) => ({

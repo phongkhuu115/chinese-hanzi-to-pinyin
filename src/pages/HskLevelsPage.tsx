@@ -67,16 +67,18 @@ export function HskLevelsPage() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    fetchWordPool()
-      .then((pool) => {
-        const c: Record<number, number> = {};
-        for (const entry of pool) {
-          c[entry.hsk] = (c[entry.hsk] ?? 0) + 1;
-        }
-        setCounts(c);
-      })
-      .catch((e) => setError(String(e)))
-      .finally(() => setLoading(false));
+    try {
+      const pool = fetchWordPool();
+      const c: Record<number, number> = {};
+      for (const entry of pool) {
+        c[entry.hsk] = (c[entry.hsk] ?? 0) + 1;
+      }
+      setCounts(c);
+    } catch (e) {
+      setError(String(e));
+    } finally {
+      setLoading(false);
+    }
   }, []);
 
   const levels = Object.keys(LEVEL_META).map(Number);
