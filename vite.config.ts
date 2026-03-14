@@ -5,6 +5,7 @@ import { defineConfig } from "vite"
 
 // https://vite.dev/config/
 export default defineConfig({
+  base: '/chinese-hanzi-to-pinyin/',
   plugins: [react(), tailwindcss()],
   resolve: {
     alias: {
