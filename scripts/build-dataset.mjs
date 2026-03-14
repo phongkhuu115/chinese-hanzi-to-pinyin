@@ -100,24 +100,32 @@ function parseEntries(raw) {
 // ─── Translation ──────────────────────────────────────────────────────────────
 const viCache = new Map();
 
-async function translateToVietnamese(english) {
-  if (!english) return "";
-  const text = english.split(";")[0].trim();
-  if (!text) return "";
-  if (viCache.has(text)) return viCache.get(text);
+async function translateOneMeaning(text) {
+  const t = text.trim();
+  if (!t) return "";
+  if (viCache.has(t)) return viCache.get(t);
 
   try {
-    const url = `https://api.mymemory.translated.net/get?q=${encodeURIComponent(text)}&langpair=en|vi`;
+    const url = `https://api.mymemory.translated.net/get?q=${encodeURIComponent(t)}&langpair=en|vi`;
     const res = await fetch(url);
-    if (!res.ok) return english;
+    if (!res.ok) return t;
     const data = await res.json();
     const translated = data?.responseData?.translatedText ?? "";
-    const result = translated && translated !== text ? translated : english;
-    viCache.set(text, result);
+    const result = translated && translated !== t ? translated : t;
+    viCache.set(t, result);
     return result;
   } catch {
-    return english;
+    return t;
   }
+}
+
+// Translates all semicolon-separated meanings and joins them back
+async function translateToVietnamese(english) {
+  if (!english) return "";
+  const parts = english.split(";").map((s) => s.trim()).filter(Boolean);
+  if (parts.length === 0) return "";
+  const translated = await Promise.all(parts.map(translateOneMeaning));
+  return translated.join("; ");
 }
 
 // Translate in batches with a small delay to avoid rate-limiting
@@ -152,11 +160,22 @@ async function main() {
       const existing = JSON.parse(readFileSync(OUT_PATH, "utf-8"));
       if (Array.isArray(existing)) {
         for (const e of existing) {
-          // Only count as "done" if it has a real Vietnamese translation
-          if (e.hanzi && e.vietnamese && e.vietnamese !== e.english) {
-            existingMap.set(e.hanzi, e);
-            // Pre-warm the translation cache so duplicates are skipped too
-            if (e.english) viCache.set(e.english.split(";")[0].trim(), e.vietnamese);
+          if (!e.hanzi || !e.vietnamese || e.vietnamese === e.english) continue;
+
+          // Re-translate if the English has more meanings than the Vietnamese
+          // (i.e. old single-meaning translation — needs refresh)
+          const enCount = e.english ? e.english.split(";").length : 0;
+          const viCount = e.vietnamese ? e.vietnamese.split(";").length : 0;
+          if (enCount > 1 && viCount < enCount) continue; // will re-translate
+
+          existingMap.set(e.hanzi, e);
+          // Pre-warm cache for each individual meaning
+          if (e.english && e.vietnamese) {
+            const enParts = e.english.split(";").map((s) => s.trim());
+            const viParts = e.vietnamese.split(";").map((s) => s.trim());
+            enParts.forEach((en, i) => {
+              if (viParts[i]) viCache.set(en, viParts[i]);
+            });
           }
         }
         console.log(`♻️  Resuming — ${existingMap.size} entries already translated, will skip them.`);
