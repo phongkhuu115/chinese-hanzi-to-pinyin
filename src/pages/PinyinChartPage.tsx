@@ -4,6 +4,143 @@ import { Badge } from "@/components/ui/badge";
 import { speak } from "@/lib/tts";
 import { cn } from "@/lib/utils";
 
+// ─── Syllable → representative Hanzi ─────────────────────────────────────────
+// Speaking pinyin romanization directly causes TTS to spell it out letter by
+// letter. Instead we speak a real Hanzi character that has that exact syllable,
+// which forces the TTS to produce the correct Mandarin pronunciation.
+const SYLLABLE_HANZI: Record<string, string> = {
+  a: "啊", o: "哦", e: "鹅", er: "耳", ai: "爱", ei: "诶", ao: "奥", ou: "欧",
+  an: "安", en: "恩", ang: "昂", eng: "鹦",
+  yi: "一", wu: "五", yu: "鱼",
+  ya: "呀", ye: "也", yao: "要", you: "有", yan: "言", yin: "音", yang: "样", ying: "应", yong: "用",
+  wa: "哇", wo: "我", wai: "外", wei: "为", wan: "万", wen: "文", wang: "王", weng: "翁",
+  yue: "月", yuan: "元", yun: "云",
+  ba: "八", pa: "怕", ma: "妈", fa: "发",
+  bo: "波", po: "破", mo: "模", fo: "佛",
+  bi: "比", pi: "皮", mi: "米",
+  bu: "不", pu: "普", mu: "木", fu: "父",
+  bai: "白", pai: "排", mai: "买",
+  bei: "北", pei: "配", mei: "美", fei: "飞",
+  bao: "包", pao: "跑", mao: "猫",
+  bou: "剖", pou: "剖", mou: "某", fou: "否",
+  ban: "半", pan: "盘", man: "满", fan: "饭",
+  ben: "本", pen: "盆", men: "门", fen: "分",
+  bang: "帮", pang: "旁", mang: "忙", fang: "方",
+  beng: "崩", peng: "朋", meng: "梦", feng: "风",
+  bie: "别", pie: "撇", mie: "灭",
+  biao: "表", piao: "票", miao: "妙",
+  biu: "镖", miu: "谬",
+  bian: "边", pian: "片", mian: "面",
+  bin: "宾", pin: "品", min: "民",
+  bing: "冰", ping: "平", ming: "明",
+  da: "大", ta: "他", na: "那", la: "拉",
+  de: "的", te: "特", ne: "呢", le: "了",
+  di: "地", ti: "题", ni: "你", li: "里",
+  du: "度", tu: "图", nu: "努", lu: "路",
+  nü: "女", lü: "旅",
+  dai: "代", tai: "太", nai: "奶", lai: "来",
+  dei: "得", lei: "类",
+  dao: "到", tao: "套", nao: "脑", lao: "老",
+  dou: "都", tou: "头", nou: "耨", lou: "楼",
+  dan: "单", tan: "谈", nan: "南", lan: "蓝",
+  den: "扽", nen: "嫩",
+  dang: "当", tang: "糖", nang: "囊", lang: "浪",
+  deng: "等", teng: "疼", neng: "能", leng: "冷",
+  dong: "东", tong: "同", nong: "农", long: "龙",
+  die: "蝶", tie: "贴", nie: "捏", lie: "列",
+  diao: "调", tiao: "跳", niao: "鸟", liao: "了",
+  diu: "丢", liu: "六",
+  niu: "牛",
+  dian: "点", tian: "天", nian: "年", lian: "连",
+  nin: "您", lin: "林",
+  ding: "定", ting: "听", ning: "宁", ling: "零",
+  niang: "娘", liang: "两",
+  liong: "咚",
+  duo: "多", tuo: "拖", nuo: "诺", luo: "落",
+  dui: "对", tui: "推",
+  duan: "段", tuan: "团", nuan: "暖", luan: "乱",
+  dun: "顿", tun: "吞", lun: "论",
+  nüe: "虐", lüe: "略",
+  ga: "嘎", ka: "卡", ha: "哈",
+  ge: "个", ke: "可", he: "和",
+  gu: "古", ku: "苦", hu: "虎",
+  gai: "该", kai: "开", hai: "海",
+  gei: "给", kei: "剋", hei: "黑",
+  gao: "高", kao: "考", hao: "好",
+  gou: "够", kou: "口", hou: "后",
+  gan: "干", kan: "看", han: "汉",
+  gen: "根", ken: "肯", hen: "很",
+  gang: "刚", kang: "康", hang: "航",
+  geng: "更", keng: "坑", heng: "横",
+  gong: "工", kong: "空", hong: "红",
+  gua: "瓜", kua: "夸", hua: "花",
+  guo: "国", kuo: "扩", huo: "火",
+  guai: "怪", kuai: "快", huai: "坏",
+  gui: "贵", kui: "葵", hui: "会",
+  guan: "关", kuan: "宽", huan: "欢",
+  gun: "滚", kun: "困", hun: "婚",
+  guang: "光", kuang: "狂", huang: "黄",
+  ji: "机", qi: "七", xi: "西",
+  jia: "家", qia: "恰", xia: "下",
+  jie: "接", qie: "切", xie: "写",
+  jiao: "叫", qiao: "桥", xiao: "小",
+  jiu: "九", qiu: "球", xiu: "秀",
+  jian: "见", qian: "钱", xian: "先",
+  jin: "金", qin: "琴", xin: "心",
+  jiang: "江", qiang: "强", xiang: "想",
+  jing: "京", qing: "清", xing: "星",
+  jiong: "窘", qiong: "穷", xiong: "熊",
+  ju: "举", qu: "去", xu: "需",
+  jue: "决", que: "却", xue: "学",
+  juan: "卷", quan: "全", xuan: "选",
+  jun: "军", qun: "群", xun: "训",
+  zha: "扎", cha: "茶", sha: "沙",
+  zhe: "这", che: "车", she: "蛇",
+  zhi: "知", chi: "吃", shi: "是", ri: "日",
+  zhu: "主", chu: "出", shu: "书", ru: "入",
+  zhai: "摘", chai: "拆", shai: "晒",
+  zhei: "这", shei: "谁",
+  zhao: "找", chao: "超", shao: "少", rao: "绕",
+  zhou: "州", chou: "丑", shou: "手", rou: "肉",
+  zhan: "站", chan: "产", shan: "山", ran: "然",
+  zhen: "真", chen: "陈", shen: "身", ren: "人",
+  zhang: "张", chang: "长", shang: "上", rang: "让",
+  zheng: "正", cheng: "成", sheng: "生", reng: "仍",
+  zhong: "中", chong: "虫", rong: "荣",
+  zhua: "抓", chua: "欻", shua: "刷",
+  zhuo: "桌", chuo: "戳", shuo: "说", ruo: "弱",
+  zhuai: "拽", chuai: "揣", shuai: "帅",
+  zhui: "追", chui: "吹", shui: "水", rui: "锐",
+  zhuan: "转", chuan: "船", shuan: "拴", ruan: "软",
+  zhun: "准", chun: "春", shun: "顺", run: "润",
+  zhuang: "装", chuang: "窗", shuang: "双",
+  za: "杂", ca: "擦", sa: "撒",
+  ze: "则", ce: "测", se: "色",
+  zi: "字", ci: "次", si: "四",
+  zu: "组", cu: "粗", su: "速",
+  zai: "在", cai: "才", sai: "赛",
+  zei: "贼",
+  zao: "早", cao: "草", sao: "扫",
+  zou: "走", cou: "凑", sou: "搜",
+  zan: "赞", can: "参", san: "三",
+  zen: "怎", cen: "岑", sen: "森",
+  zang: "脏", cang: "仓", sang: "桑",
+  zeng: "增", ceng: "层", seng: "僧",
+  zong: "总", cong: "从", song: "送",
+  zuo: "做", cuo: "错", suo: "所",
+  zui: "最", cui: "催", sui: "随",
+  zuan: "钻", cuan: "蹿", suan: "算",
+  zun: "尊", cun: "村", sun: "孙",
+};
+
+/**
+ * Get a representative Hanzi for a syllable so TTS pronounces it correctly.
+ * Falls back to the pinyin string if no Hanzi is found (rare edge cases).
+ */
+function syllableToSpeech(syllable: string): string {
+  return SYLLABLE_HANZI[syllable] ?? syllable;
+}
+
 // ─── Data ─────────────────────────────────────────────────────────────────────
 
 // Finals (columns) — ordered as in standard Mandarin pinyin charts
@@ -336,7 +473,10 @@ export function PinyinChartPage() {
   const handleClick = useCallback(
     (syllable: string) => {
       const withTone = applyTone(syllable, tone);
-      speak(withTone);
+      // Speak the representative Hanzi so TTS produces correct Mandarin sound
+      // instead of reading the romanized pinyin letter by letter.
+      const hanzi = syllableToSpeech(syllable);
+      speak(hanzi);
       setLastPlayed(withTone);
     },
     [tone]
@@ -385,9 +525,17 @@ export function PinyinChartPage() {
         )}
       </div>
 
-      {/* Chart — horizontally scrollable */}
-      <div className="overflow-x-auto rounded-lg border border-border">
-        <table className="border-collapse text-xs min-w-max">
+      {/* Chart — horizontally scrollable, scrollbar on top */}
+      {/* Flip outer container so the scrollbar appears at the top,
+          then flip inner content back so it renders normally. */}
+      <div
+        className="overflow-x-auto rounded-lg border border-border"
+        style={{ transform: "rotateX(180deg)" }}
+      >
+        <table
+          className="border-collapse text-xs min-w-max"
+          style={{ transform: "rotateX(180deg)" }}
+        >
           <thead>
             <tr>
               {/* Corner cell */}
@@ -408,10 +556,10 @@ export function PinyinChartPage() {
             {INITIALS.map((initial, rowIdx) => (
               <tr
                 key={initial}
-                className={rowIdx % 2 === 0 ? "bg-background" : "bg-muted/30"}
+                className={rowIdx % 2 === 0 ? "bg-background" : "bg-muted"}
               >
                 {/* Initial label */}
-                <td className="sticky left-0 z-10 bg-inherit px-3 py-1.5 font-semibold border-r border-border whitespace-nowrap">
+                <td className="sticky bg-inherit left-0 z-10 px-3 py-1.5 font-semibold border-r border-border whitespace-nowrap">
                   {initial === "Ø" ? (
                     <span className="text-muted-foreground">Ø-</span>
                   ) : (
