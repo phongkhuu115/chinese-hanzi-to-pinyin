@@ -5,6 +5,8 @@ import { RandomVocabPage } from "@/pages/RandomVocabPage";
 import { PinyinAssertionPage } from "@/pages/PinyinAssertionPage";
 import { TestPage } from "@/pages/TestPage";
 import { PinyinChartPage } from "@/pages/PinyinChartPage";
+import { HskLevelsPage } from "@/pages/HskLevelsPage";
+import { HskVocabListPage } from "@/pages/HskVocabListPage";
 
 export function App() {
   return (
@@ -16,6 +18,8 @@ export function App() {
           <Route path="pinyin" element={<PinyinAssertionPage />} />
           <Route path="test" element={<TestPage />} />
           <Route path="chart" element={<PinyinChartPage />} />
+          <Route path="vocab-list" element={<HskLevelsPage />} />
+          <Route path="vocab-list/:level" element={<HskVocabListPage />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Route>
       </Routes>

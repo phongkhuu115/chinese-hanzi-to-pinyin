@@ -1,5 +1,5 @@
 import { NavLink, Outlet } from "react-router-dom";
-import { BookOpen, PenLine, ClipboardList, Grid2x2, Moon, Sun } from "lucide-react";
+import { BookOpen, PenLine, ClipboardList, Grid2x2, Moon, Sun, Library } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useTheme } from "@/components/theme-provider";
 import { VoiceSelector } from "@/components/VoiceSelector";
@@ -10,6 +10,7 @@ const navItems = [
   { to: "/pinyin", label: "Pinyin Practice", icon: PenLine },
   { to: "/test", label: "Test", icon: ClipboardList },
   { to: "/chart", label: "Pinyin Chart", icon: Grid2x2 },
+  { to: "/vocab-list", label: "HSK Vocab", icon: Library },
 ];
 
 export function AppLayout() {

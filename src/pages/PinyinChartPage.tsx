@@ -143,19 +143,6 @@ function syllableToSpeech(syllable: string): string {
 
 // ─── Data ─────────────────────────────────────────────────────────────────────
 
-// Finals (columns) — ordered as in standard Mandarin pinyin charts
-const FINALS = [
-  "-a", "-o", "-e", "-i", "-u", "-ü",
-  "-ai", "-ei", "-ao", "-ou",
-  "-an", "-en", "-ang", "-eng", "-ong",
-  "-er",
-  "-ia", "-ie", "-iao", "-iou",
-  "-ian", "-in", "-iang", "-ing", "-iong",
-  "-ua", "-uo", "-uai", "-uei",
-  "-uan", "-uen", "-uang", "-ueng",
-  "-üe", "-üan", "-ün",
-];
-
 // Initials (rows)
 const INITIALS = [
   "Ø", // zero initial
