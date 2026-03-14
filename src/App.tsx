@@ -1,21 +1,26 @@
-import { Button } from "@/components/ui/button"
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { AppLayout } from "@/components/layout/AppLayout";
+import { HomePage } from "@/pages/HomePage";
+import { RandomVocabPage } from "@/pages/RandomVocabPage";
+import { PinyinAssertionPage } from "@/pages/PinyinAssertionPage";
+import { TestPage } from "@/pages/TestPage";
+import { PinyinChartPage } from "@/pages/PinyinChartPage";
 
 export function App() {
   return (
-    <div className="flex min-h-svh p-6">
-      <div className="flex max-w-md min-w-0 flex-col gap-4 text-sm leading-loose">
-        <div>
-          <h1 className="font-medium">Project ready!</h1>
-          <p>You may now add components and start building.</p>
-          <p>We&apos;ve already added the button component for you.</p>
-          <Button className="mt-2">Button</Button>
-        </div>
-        <div className="font-mono text-xs text-muted-foreground">
-          (Press <kbd>d</kbd> to toggle dark mode)
-        </div>
-      </div>
-    </div>
-  )
+    <BrowserRouter>
+      <Routes>
+        <Route element={<AppLayout />}>
+          <Route index element={<HomePage />} />
+          <Route path="vocab" element={<RandomVocabPage />} />
+          <Route path="pinyin" element={<PinyinAssertionPage />} />
+          <Route path="test" element={<TestPage />} />
+          <Route path="chart" element={<PinyinChartPage />} />
+          <Route path="*" element={<Navigate to="/" replace />} />
+        </Route>
+      </Routes>
+    </BrowserRouter>
+  );
 }
 
-export default App
+export default App;
